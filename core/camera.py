@@ -1,22 +1,23 @@
 """
-GazeBoard V2 — Camera Module
-Wraps cv2.VideoCapture with automatic BGR→RGB conversion and
-resolution configuration from project constants.
+GazeBoard V2 — Camera Module (Threaded High-FPS)
+Wraps cv2.VideoCapture with a dedicated background thread for non-blocking
+frame reading and automatic BGR→RGB conversion.
 """
+
+import threading
+import time
 
 import cv2
 import numpy as np
 
-from config import CAMERA_INDEX, CAMERA_WIDTH, CAMERA_HEIGHT
+from config import CAMERA_HEIGHT, CAMERA_INDEX, CAMERA_WIDTH
 
 
 class Camera:
-    """Manages a single video-capture device.
+    """Manages a single video-capture device with threaded background reading.
 
-    Opens the camera at the configured index and resolution on
-    construction.  If the device cannot be opened, a warning is
-    printed and every subsequent ``get_frame()`` call returns
-    ``(False, empty_array)``.
+    Runs frame acquisition on a background thread to prevent OpenCV I/O
+    blocking the main rendering/tracking loop.
 
     Parameters
     ----------
@@ -33,6 +34,7 @@ class Camera:
         camera_index: int = CAMERA_INDEX,
         width: int = CAMERA_WIDTH,
         height: int = CAMERA_HEIGHT,
+        target_fps: int = 240,
     ) -> None:
         self._camera_index = camera_index
         self._width = width
@@ -45,39 +47,55 @@ class Camera:
                 f"[Camera] WARNING: Unable to open camera at index "
                 f"{camera_index}. Frames will be unavailable."
             )
+            self._running = False
             return
 
-        # Request the desired resolution (the driver may choose the
-        # closest supported size).
+        # Request high FPS and resolution from camera hardware driver
         self._cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
         self._cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+        self._cap.set(cv2.CAP_PROP_FPS, target_fps)
+
+        self._ret: bool = False
+        self._frame_rgb: np.ndarray = np.empty((0, 0, 3), dtype=np.uint8)
+        self._lock = threading.Lock()
+        self._running: bool = True
+
+        # Start background thread for continuous non-blocking frame retrieval
+        self._thread = threading.Thread(target=self._update_loop, daemon=True)
+        self._thread.start()
+
+    def _update_loop(self) -> None:
+        """Background thread loop that constantly reads from the webcam."""
+        while self._running and self._cap.isOpened():
+            ret, frame = self._cap.read()
+            if ret and frame is not None:
+                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                with self._lock:
+                    self._ret = True
+                    self._frame_rgb = frame_rgb
+            else:
+                with self._lock:
+                    self._ret = False
+            time.sleep(0)  # Yield thread with 0 latency
 
     # ── public API ───────────────────────────────────────────
 
     def get_frame(self) -> tuple[bool, np.ndarray]:
-        """Read one frame from the camera and return it as RGB.
+        """Read the latest frame non-blockingly.
 
         Returns
         -------
         success : bool
             ``True`` if a frame was successfully captured.
         frame : np.ndarray
-            The captured frame in **RGB** colour order.  On failure
-            an empty ``(0, 0, 3)`` array is returned.
+            The latest captured frame in **RGB** colour order.
         """
-        if not self.is_opened:
-            return False, np.empty((0, 0, 3), dtype=np.uint8)
-
-        success, frame = self._cap.read()
-
-        if not success or frame is None:
-            return False, np.empty((0, 0, 3), dtype=np.uint8)
-
-        frame_rgb: np.ndarray = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        return True, frame_rgb
+        with self._lock:
+            return self._ret, self._frame_rgb
 
     def release(self) -> None:
-        """Release the underlying video-capture device."""
+        """Release the camera and stop the background thread."""
+        self._running = False
         if self._cap is not None and self._cap.isOpened():
             self._cap.release()
 

@@ -6,3 +6,4 @@ env/
 venv/
 .idea/
 .vscode/
+face_landmarker.task

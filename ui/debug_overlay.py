@@ -215,6 +215,11 @@ class DebugOverlay:
                 ("Smooth", f"({gaze_smooth[0]:4.0f},{gaze_smooth[1]:4.0f})")
             )
 
+        # Self-healing Calibration confidence score %
+        calib_conf = self._data.get("calib_conf")
+        if calib_conf is not None:
+            rows.append(("CalibConf", f"{calib_conf:5.1f}%"))
+
         for label, value_str in rows:
             label_surf = self._font.render(
                 f"{label}:", True, self._text_color
@@ -331,7 +336,8 @@ class DebugOverlay:
         dot_colour = self._accent_color
         dot_radius = 1
 
-        for px, py in landmarks:
+        # Subsample landmarks for fast rendering without Pygame draw-call lag
+        for px, py in landmarks[::3]:
             nx = int(offset_x + (px - min_x) * scale)
             ny = int(offset_y + (py - min_y) * scale)
-            pygame.draw.circle(panel, dot_colour, (nx, ny), dot_radius)
+            panel.set_at((nx, ny), dot_colour)

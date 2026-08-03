@@ -13,10 +13,12 @@ CAMERA_HEIGHT = 480
 # ──────────────────────────────────────────────
 # Display
 # ──────────────────────────────────────────────
-SCREEN_WIDTH = 1920
-SCREEN_HEIGHT = 1080
-TARGET_FPS = 30
+SCREEN_WIDTH = 1366  # Full screen width (auto-adjusted at runtime)
+SCREEN_HEIGHT = 480  # Bottom panel height for 5-row full standard keyboard
+TARGET_FPS = 0  # 0 = Uncapped (maximum possible hardware FPS)
 FULLSCREEN = False  # Set True for deployment
+ALWAYS_ON_TOP = True # Keep GazeBoard floating on top of Notepad/Chrome
+DOCK_BOTTOM = True   # Dock keyboard to the bottom of the screen
 
 # ──────────────────────────────────────────────
 # Blink Detection (EAR)
@@ -29,10 +31,11 @@ LONG_BLINK_MAX_MS = 2000      # Safety cap — beyond this, user may be resting
 DOUBLE_BLINK_WINDOW_MS = 500  # Max gap between two blinks to count as double
 
 # ──────────────────────────────────────────────
-# Kalman Filter
+# Kalman Filter & Dead-Zone Smoothing
 # ──────────────────────────────────────────────
-KALMAN_PROCESS_NOISE = 0.03       # Higher = more responsive, more jitter
-KALMAN_MEASUREMENT_NOISE = 0.1    # Higher = smoother, more lag
+KALMAN_PROCESS_NOISE = 0.005      # Lower = smoother tracking, ignores micro-jitter
+KALMAN_MEASUREMENT_NOISE = 1.5    # Higher = heavy noise suppression
+JITTER_DEADZONE_PX = 12.0         # Ignore movement smaller than 12px (keeps dot still)
 
 # ──────────────────────────────────────────────
 # Gaze Cursor
@@ -55,7 +58,23 @@ DEBUG_TEXT_COLOR = (200, 220, 255)          # Light blue text
 DEBUG_ACCENT_COLOR = (100, 200, 255)       # Accent for values
 
 # ──────────────────────────────────────────────
-# Colors (UI Theme — Dark Mode)
+# Self-Healing Calibration Toggle
 # ──────────────────────────────────────────────
-BG_COLOR = (15, 15, 25)                    # Near-black background
-GRID_COLOR = (30, 30, 50)                  # Subtle grid lines
+ENABLE_NUDGE_CALIBRATION = True  # Set False to disable implicit learning anytime
+DWELL_TIME_MS = 800           # Time in ms required to dwell on a key to type it
+RE_DWELL_COOLDOWN_MS = 500    # Cooldown after typing before key can be dwell-selected again
+
+# ──────────────────────────────────────────────
+# UI Palette & Layout (Dark Slate Theme)
+# ──────────────────────────────────────────────
+COLOR_BG = (15, 17, 26)                  # #0F111A Dark slate background
+COLOR_PANEL_BG = (24, 27, 42)            # #181B2A Top panel background
+COLOR_KEY_BG = (30, 34, 53)              # #1E2235 Key card background
+COLOR_KEY_BORDER = (45, 51, 80)          # Key subtle border
+COLOR_KEY_HOVER = (59, 130, 246)         # #3B82F6 Blue hover border glow
+COLOR_DWELL_RING = (16, 185, 129)        # #10B981 Green radial dwell progress fill
+COLOR_TEXT = (243, 244, 246)             # #F3F4F6 Primary white text
+COLOR_TEXT_SECONDARY = (156, 163, 175)   # #9CA3AF Secondary text
+COLOR_ACCENT = (99, 102, 241)            # #6366F1 Accent purple
+COLOR_ACTION_BG = (37, 99, 235)          # #2563EB Action button background (Speak/Clear)
+
